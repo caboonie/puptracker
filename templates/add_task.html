@@ -1,0 +1,345 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+<style type="text/css">
+#add_nav {
+  border: solid grey 2px;
+  border-radius: 2px;
+}
+
+tr  {
+  border: none !important;
+}
+
+.tr-left {
+  width: 250px;
+  text-align: right;
+}
+
+td {
+  border: none !important;
+}
+</style>
+
+	<h1>{{text['Add Task']}} </h1>
+<!-- div for each type and based on javascript, fade in the appropriate fields for that task 
+ -->
+
+ <script type="text/javascript">
+  	previous_container = null;
+  	previous_type = null;
+
+  	
+  	function updateFields() {
+  		console.log("called update")
+  		var type_input = jQuery("#task_type")
+  		task_type = type_input.val()
+      console.log("type","#container_" + task_type)
+  		var container = jQuery("#container_" + task_type)
+  		
+  		if (!(previous_container == null)){
+  			previous_container.css("display", "none")
+  			jQuery(".required_"+previous_type).each(function(){
+  				$(this).attr("required", "false")
+  			})
+  		}
+  		container.css("display", "block")
+  		jQuery(".required_"+task_type).each(function(){
+        console.log("this",this)
+			$(this).attr("required", "true")
+		})
+  		previous_container = container
+  		previous_type = task_type
+  	}
+
+  	// function initDate(amount, unit) {
+  	// 	this.innerHTML = this.data("amount") + " " + this.data("unit") + "(s) before due date."
+  	// }
+
+  	function calculateAllDates(index) {
+  		var due_date = new Date(jQuery("#due_date_"+index).val());
+  		var due_date = new Date(due_date.getTime() + due_date.getTimezoneOffset()*60*1000) // correct for timezone offset
+  		// console.log("due_date", due_date, due_date.getTime(),  due_date.getTimezoneOffset()*60*1000, new_due_date)
+  		jQuery(".reminder").each(function(){
+  			reminder = $(this); // convert to jQuery
+  			console.log("reminder", reminder, reminder.data("user-changed"), !reminder.data("user-changed"))
+  			if (!reminder.data("user-changed")) {
+  				console.log(reminder.data("unit"))
+	  			if (reminder.data("unit") == "day" || reminder.data("unit") == "día"){
+	  				remind_date = due_date - parseInt(reminder.data("amount"))*24*60*60*1000
+	  			} else if (reminder.data("unit") == "week" || reminder.data("unit") == "semana") {
+            remind_date = due_date - parseInt(reminder.data("amount"))*7*24*60*60*1000
+          } else if (reminder.data("unit") == "month" || reminder.data("unit") == "mes") {
+            remind_date = due_date - parseInt(reminder.data("amount"))*30*24*60*60*1000
+          }
+	  			var remind_date = new Date(remind_date);
+	  			var day = ("0" + remind_date.getDate()).slice(-2);
+				var month = ("0" + (remind_date.getMonth() + 1)).slice(-2);
+
+				var display_date = remind_date.getFullYear()+"-"+(month)+"-"+(day) ;
+	  			console.log(remind_date, "display date", display_date)
+	  			reminder.val(display_date);
+	  		}
+  		})
+  	}
+
+  	function userChange(reminder) {
+  		$(reminder).data("user-changed", "true");
+  	}
+
+
+
+  </script>
+
+
+  <h3 style="display: inline;">{{text['Choose a task type']}}:</h3>
+  <select  style="font-size: 23px; border: solid lightgrey 2px; background: none; border-radius: 4px;" id="task_type" name="task_type" onchange="updateFields()">
+  	<option value=""></option>
+  	{% for task_type in task_types %}
+	    <option value="{{task_type.id}}">{{task_type.task_type}}</option>
+    {% endfor %}
+  </select>
+
+  <!-- I want the value of this select to cause one of -->
+  <!-- templates for cloning -->
+    <div style="display: none;">
+    	<button id="remove_template" type="button" style="margin: 10px">{{text['Remove']}}</button>
+    	<div id="reminder_box"></div>
+      <input id="reminder_date_template" class="username form-control" type="date" name="reminder_number">
+
+      <div id="item_box"></div>
+      <div id="item_auto_box_template" class="autocomplete" style="width:300px;"></div>
+      <input id="item_template" class="username form-control" type="text" name="item_number">
+    </div>
+
+  {% for task_type in task_types %}
+  {% set outer_loop = loop %}
+  <form action="{{ url_for('add_task') }}" id="container_{{task_type.id}}" style="display: none" method = 'post' autocomplete="off">
+  	<input style="display: none" type="text"  name="task_type" value="{{task_type.task_type}}">
+	  <div class="form-group" >
+	  	<br>
+      <table>
+        <tr>
+          <td class="tr-left"><label for="due_date_{{loop.index}}">{{task_type.due_date_text}}: </label></td>
+          <td><input class="required_{{task_type.id}}"  type="date" id="due_date_{{loop.index}}" name="due_date" onchange="calculateAllDates({{loop.index}})"></td>
+        </tr>
+
+        <tr>
+          <td class="tr-left"><label for="description">{{text['Description']}}: </label></td>
+          <td><input type="text" class="required_{{task_type.id}}" name="description" rows="4" cols="50"> </input></td>
+        </tr>
+
+        <tr>
+          <td class="tr-left"><label for="name_{{loop.index}}">{{text['Patient Name']}}: </label></td>
+          <td><input type="text" id="patient_name_{{loop.index}}" name="patient_name"></td>
+        </tr>
+
+        <tr>
+          <td class="tr-left"><label for="birthdate_{{loop.index}}">{{text['Birthdate']}}: </label></td>
+          <td><input type="date" id="birthdate_{{loop.index}}" name="birthdate"></td>
+        </tr>
+
+        <tr>
+          <td class="tr-left"><label for="dni_{{loop.index}}">{{text['DNI']}}: </label></td>
+          <td><input type="text" id="dni_{{loop.index}}" name="dni"></td>
+        </tr>
+
+        
+
+
+      
+	  	<!-- <div><h4>{{text['Required Fields']}}: </h4></div> -->
+
+      
+
+	  	{% for field in task_type.required_fields %}
+	  		{% if field is mapping %}
+	  			{% for key in field %}
+          <tr>
+	  				<td class="tr-left"> <label for="{{task_type.task_type}}_{{key}}">{{key}}:</label> </td>
+            <td>
+  	  				<select class="required_{{task_type.id}}" id="{{task_type.id}}_{{key}}" name="{{key}}" onchange="checkOther('{{task_type.id}}', '{{key}}')" >
+  					  	<option value=""></option>
+  					  	{% for option in field[key] %}
+                  {% if option == "Other"%}
+                    <option value="{{option}}">{{text['Other']}}</option>
+                  {% else %}
+  						      <option value="{{option}}">{{option}}</option>
+                  {% endif %}
+  					    {% endfor %}
+  					  </select>
+              <input style="display: none" type="text"  id="{{task_type.id}}_{{key}}_othertext" name="{{key}}_other" placeholder="...">
+            </td>
+          </tr>
+	  			{% endfor %}
+	  		{% else %}
+        <tr>
+		  		<td class="tr-left">
+            <label for="{{task_type.task_type}}_{{field}}">{{field}}:</label>
+          </td>
+          <td>
+            <input class="required_{{task_type.id}}" type="text" id="{{task_type.task_type}}_{{field}}" name="{{field}}" placeholder="{{field}}">
+          </td>
+        </tr>
+		  	{% endif %}
+	  	{% endfor %}
+
+	  	{% if (task_type.optional_fields | length) > 0%}
+		  	<div><h4>{{text['Optional Fields']}}: </h4></div>
+		  	{% for field in task_type.optional_fields %}
+			  	{% if field is mapping %}
+		  			{% for key in field %}
+            <tr>
+              <td class="tr-left"> <label for="{{task_type.task_type}}_{{key}}">{{key}}:</label> </td>
+              <td>
+  		  				<select id="{{task_type.id}}_{{key}}" name="{{key}}"  onchange="checkOther('{{task_type.id}}', '{{key}}')">
+  						  	<option value=""></option>
+  						  	{% for option in field[key] %}
+  							    {% if option == "Other"%}
+                      <option value="{{option}}">{{text['Other']}}</option>
+                    {% else %}
+                      <option value="{{option}}">{{option}}</option>
+                    {% endif %}
+  						    {% endfor %}
+  						  </select>
+                <input style="display: none" type="text"  id="{{task_type.id}}_{{key}}_othertext" name="{{key}}_other" placeholder="...">
+              </td>
+            </tr>
+		  			{% endfor %}
+		  		{% else %}
+            <tr>
+              <td class="tr-left">
+  		  			 <label for="{{task_type.task_type}}_{{field}}">{{field}}:</label>
+              </td>
+              <td>
+                <input type="text" id="{{task_type.task_type}}_{{field}}" name="{{field}}" placeholder="{{field}}">
+              </td>
+            </tr>
+		  		{% endif %}
+		  	{% endfor %}
+		{% endif %}
+    </table>
+
+		<div id="task_reminders_{{task_type.id}}" class="form_group">
+		  	<div><h4>{{text['Current Reminders']}}:</h4></div>
+		  	{% for reminder in task_type.reminders %}
+		  		<div id="field_{{loop.index}}">
+			  		<p>Automatically {{reminder.amount}} {{reminder.unit}}(s) before (but user can adjust): </p>
+			  		<input name="reminder_{{loop.index}}" type="date" id="reminder_{{outer_loop.index}}_{{loop.index}}" class="reminder" data-amount="{{reminder.amount}}" data-unit="{{reminder.unit}}" data-user-changed="false" onchange="userChange(this)">
+			  		<button id="remove_template" type="button" style="margin: 10px" onclick="removeField({{loop.index}})">{{text['Remove']}}</button>
+			  	</div>
+		  	{% endfor %}
+
+	  	
+	    </div>
+
+      <button type="button" onclick="addReminder('{{task_type.id}}')" style="margin: 10px;">{{text['Add Another Reminder']}}</button>
+
+      <div id="task_items_{{task_type.id}}" class="form_group">
+        <div><h4>{{text['Items of Potential Use']}}:</h4></div>
+
+
+      
+      </div>
+
+	  	<button type="button" onclick="addItem('{{task_type.id}}')" style="margin: 10px;">{{text['Add Another Item']}}</button>
+      <br>
+
+	  	 <button style="font-size:25px; " class="btn btn-success" type="submit" id="submit_new_user"> {{text['Add Task']}} </button>
+	  </div>
+	 </form>
+	 
+
+
+  {% endfor %}
+
+
+<script type="text/javascript">
+count = -1
+	
+function addReminder(id) {
+    var box = jQuery("#reminder_box").clone();
+    box.css("display","block");
+    box.attr("id", "field_"+count)
+
+    var label = $("<p></p>").text("{{text['Enter a reminder date']}}: ");
+    box.append(label)
+    var number = jQuery("#reminder_date_template").clone();
+    number.css("display","inline");
+    number.attr("name", "reminder_date_"+count)
+    box.append(number);
+
+    var remove = jQuery("#remove_template").clone();
+    remove.css("display","inline");
+    remove.attr("id", "remove_"+count)
+    remove.attr("onclick", "removeField("+count+")")
+    box.append(remove)
+
+    jQuery("#task_reminders_"+id).append(box);
+    
+
+    count -= 1;
+  }
+
+function addItem(id) {
+  console.log("adding item entry")
+    var box = jQuery("#item_box").clone();
+    box.css("display","block");
+    box.attr("id", "field_"+count)
+
+    var label = $("<p></p>").text("{{text['Enter an Item Name']}}: ");
+    box.append(label)
+
+    var inner_box = jQuery("#item_auto_box_template").clone();
+    inner_box.css("display","inline");
+    inner_box.attr("id", "item_auto_"+count)
+    box.append(inner_box);
+
+    var item_input = jQuery("#item_template").clone();
+    item_input.css("display","inline");
+    item_input.attr("name", "item_"+count)
+    item_input.attr("id", "item_"+count)
+    /*initiate the autocomplete function on the item input element, and pass along the countries array as possible autocomplete values:*/
+    autocomplete(item_input[ 0 ], countries);
+    inner_box.append(item_input);
+
+    var remove = jQuery("#remove_template").clone();
+    remove.css("display","inline");
+    remove.attr("id", "remove_"+count)
+    remove.attr("onclick", "removeField("+count+")")
+    box.append(remove)
+
+    jQuery("#task_items_"+id).append(box);
+    
+
+    count -= 1;
+  }
+
+function removeField(id) {
+    jQuery("#field_"+id).css("display", "none");
+    jQuery("#field_"+id).val(""); // clear out the value so that this field is not saved to database upon submission
+
+    try {
+      jQuery("#reminder_unit_"+id).css("display", "none");
+    } catch {
+
+    }
+    jQuery("#remove_"+id).css("display", "none");
+  }
+
+// Autocomplete functionality 
+
+
+/*An array containing all the country names in the world:*/
+var countries = [{% for item in inventory %}
+           "{{item.name}}",
+          {% endfor %}
+          ];
+console.log("countries", countries)
+
+</script>
+
+  
+
+{%endblock%}

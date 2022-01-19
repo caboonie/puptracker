@@ -1,0 +1,401 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+<style type="text/css">
+
+#task_nav {
+  border: solid grey 2px;
+  border-radius: 2px;
+}
+
+
+td {
+  /*border: none !important;*/
+  height: 0px;
+  width: 500px;
+  text-align: left;
+}
+
+.task-table-content {
+  /*position: absolute;*/
+  top: 0;
+  padding-top: 5px;
+}
+
+.task-table {
+  width: 100%;
+}
+
+aside {
+  display: block;
+  position: relative;
+  min-height: 100px;
+}
+
+aside h3 {
+  font: bold 12px Sans-Serif;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: #369;
+  color: #fff;
+  padding: 5px 10px;
+  margin: 0 0 10px 0;
+  line-height: 24px;
+}
+
+a {
+  color: black;
+}
+
+/* Class name via Modernizr */
+.csstransforms aside {
+  border-left: 34px solid #369;
+  padding-left: 10px;
+}
+.csstransforms aside h3 {
+  /* Abs positioning makes it not take up vert space */
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  /* Border is the new background */
+  background: none;
+
+  /* Rotate from top left corner (not default) */
+  transform-origin: 0 0;
+  transform: rotate(90deg);
+}
+
+
+.task-row td {
+  border: none;
+  width: 100%;
+}
+
+.alignleft {
+  float: left;
+}
+.alignright {
+  float: right;
+}
+
+.no-underline {
+  border: 1px solid grey;
+  margin-right: 8px;
+  padding-right: 10px;
+  padding-left: 10px;
+  height: 25px;
+  text-decoration: none;
+}
+
+.complete-box{
+  display: block; height: 25px; width: 25px; min-width: 20px; border: 1px solid gray;
+}
+
+.complete-box:hover{
+  cursor: pointer;
+}
+
+</style>
+
+<h1>{{text["Weekly Tasks"]}}</h1>
+
+ <!-- TODO make these button pretty arrows -->
+ <span style="font-size: 18px; color: grey;">{{text['Tasks by']}}: </span>
+  <a class="pretty-button" href="/daily_tasks/{{datestring}}">{{text['Day']}}</a>
+  <a style="background-color: lightgrey; color:grey;" class="pretty-button" href="/weekly_tasks/{{datestring}}">{{text['Week']}}</a>
+  <a class="pretty-button" href="/monthly_tasks/{{datestring}}">{{text['Month']}}</a>
+  <br>
+
+<br>
+  <!-- <h2 >{{text['Tasks']}}</h2> -->
+  <h2 id="day_header" style="display: inline">{{text['Week']}}, {{datestrings[0][5:]}} - {{datestrings[6][5:]}}</h2>
+  <a  id="prev_button"><img style="margin-top: -10px;" src="{{url_for('static', filename='arrow_left.png')}}" class="arrow"></a>
+  <a  id="next_button"><img style="margin-top: -10px;" src="{{url_for('static', filename='arrow_right.png')}}" class="arrow"></a>
+  <br>
+  <br>
+
+
+  
+
+  
+
+
+  <table style="margin-left: 20px">
+  {% for tasks in tasks_by_day %}
+    <tr>
+      <td>
+        <aside>
+          <a href="/daily_tasks/{{datestrings[loop.index]}}">
+            <h3> {{WEEKDAYS[loop.index-1]}}</h3>
+            </a> 
+
+          <div class="task-table-content">
+          {% if tasks|length > 0 %}
+            <div id="table-container-{{weekdays[loop.index]}}">
+              <table class="task-table" id="hidden-task-table-{{weekdays[loop.index]}}" style="display: none; width:300px; " >
+              {% for task in tasks %}
+                <tr class="task-row" >
+                  <td>
+                  <div class="alignleft">
+                    <!-- {% if task.completed %}
+                      <span style="text-decoration: line-through"><a href="/task/{{task.id}}"> </a></span>
+
+                    {% else %}
+                      <span ><a href="/task/{{task.id}}"> </a></span>
+                    {% endif %} -->
+
+                    {% if task.description|length > 20 %}
+                          <span class="desc-col"> <a href="/task/{{task.id}}">{{ task.description[:20] }}</a> <span class="tooltip2">...<span class="tooltiptext">{{ task.description }}</span></span></span>
+                      {% else %}
+                        <a href="/task/{{task.id}}"><span class="desc-col"> {{ task.description }} </span></a>
+                      {% endif %}
+                    </div>
+
+
+                    <div class="alignright complete-box"  onclick="toggleCompleted({{task.id}})">
+                      {% if task.completed %}
+                        X
+                      {% endif %}
+                    </div>
+
+                    <a class="alignright no-underline"  href="/task/{{task.id}}">
+                      {{text["Update Task"]}}
+                    </a>
+                    <div style="clear: both;"></div>
+
+                    <td>
+                  </tr>
+                {% endfor %}
+              </table>
+            </div>
+          {% else %}
+            
+              No hay tareas para hoy.
+            
+          {% endif %}
+          </div>
+        </aside>        
+
+      </td>
+    </tr>
+
+  {% endfor %}
+</table>
+
+
+  <h3 style="display: inline;">{{text['Filter by task type']}}:</h3>
+    <select id="task_type" name="task_type" onchange="filterByTaskType()" style="font-size: 23px; border: solid lightgrey 2px; background: none; border-radius: 4px;">
+    <option  value="all">{{text['all']}}</option>
+    {% for task_type in task_types %}
+      <option value="{{task_type.task_type}}"> {{task_type.task_type}} </option>
+    {% endfor %}
+  </select>
+  <br>
+  <br>
+
+ 
+  {% if overdue_tasks|length > 0 %}
+  <h4> Overdue Tasks: </h4>
+
+  <div id="table-container">
+    <table id="hidden-overdue-task-table" style="display: none; width:300px; " >
+      <tr>
+          <th> {{text['Task Type']}} 
+            <img onclick="sortTable(0)" src="{{url_for('static', filename='arrow_up.png')}}" class="arrow">
+            <img onclick="sortTable(0, true)" src="{{url_for('static', filename='arrow_down.png')}}" class="arrow">
+          </th>
+          <th>{{text['Description']}}  
+            <img onclick="sortTable(1)" src="{{url_for('static', filename='arrow_up.png')}}" class="arrow">
+            <img onclick="sortTable(1, true)" src="{{url_for('static', filename='arrow_down.png')}}" class="arrow">
+          </th>
+          {% for col in col_strings %}
+            <th> {{ col }} 
+              <img onclick="sortTable({{loop.index+1}})" src="{{url_for('static', filename='arrow_up.png')}}" class="arrow">
+              <img onclick="sortTable({{loop.index+1}}, true)" src="{{url_for('static', filename='arrow_down.png')}}" class="arrow">
+            </th>
+          {% endfor %}
+              
+          </tr>
+
+
+      {% for task in overdue_tasks %}
+        <tr class="task-row" >
+          <td><a href="/task/{{task.id}}"> {{ task.task_type }} 
+            <span style="color: red;">
+              ({{text['Overdue']}})
+            </span>
+           </a></td>
+          {% if task.description|length > 20 %}
+              <td class="desc-col"> {{ task.description[:20] }} <span class="tooltip2">...<span class="tooltiptext">{{ task.description }}</span></span></td>
+          {% else %}
+            <td class="desc-col"> {{ task.description }} </td>
+          {% endif %}
+
+          {% for col in col_vars %}
+            <td> {{ task[col] }} </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <br>
+  <br>
+  {% endif %}
+
+
+<script>
+  var display_date = new Date(Date.parse("{{datestrings[0]}}"));
+  display_date =  new Date(display_date.getTime() + display_date.getTimezoneOffset()*60*1000)
+  jQuery("#day_header").innerHTML = "Tasks for "+display_date;
+
+  var next_date = new Date(display_date.valueOf());
+  next_date.setDate(next_date.getDate() + 7);
+  console.log("display_date",display_date, "next_date", next_date)
+
+  var day = ("0" + next_date.getDate()).slice(-2);
+  var month = ("0" + (next_date.getMonth() + 1)).slice(-2);
+
+  jQuery("#next_button").attr("href", "/weekly_tasks/"+next_date.getFullYear()+"-"+month+"-"+day)
+
+  var prev_date = new Date(display_date.valueOf());
+  prev_date.setDate(prev_date.getDate() - 7);
+  var day = ("0" + prev_date.getDate()).slice(-2);
+  var month = ("0" + (prev_date.getMonth() + 1)).slice(-2);
+
+  jQuery("#prev_button").attr("href", "/weekly_tasks/"+prev_date.getFullYear()+"-"+month+"-"+day)
+
+  // year, month, day = 
+
+  // corrected_date = new Date(Date.now().getTime() + due_date.getTimezoneOffset()*60*1000);
+  // var day = ("0" + remind_date.getDate()).slice(-2);
+  // var month = ("0" + (remind_date.getMonth() + 1)).slice(-2);
+  // var display_date = remind_date.getFullYear()+"-"+(month)+"-"+(day) ;
+  // jQuery("#day_header").innerHTML = "Tasks for "+display_date;
+
+    
+  function filterByTaskType() {
+    console.log("filtering")
+    var type_input = jQuery("#task_type").val().trim()
+    console.log("by ",type_input)
+    for (const weekday of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+
+      console.log("here1", weekday)
+      var table = $("<table id='task-table-copy-"+weekday+"' class='task-table'></table>").text("");
+
+      prev_table = jQuery("#hidden-task-table-"+weekday).clone();
+      rows = prev_table.find('> tbody > tr');
+      // table.append(rows[0]);
+      console.log(rows.length)
+      for (i = 0; i < (rows.length); i++) {
+        td = rows[i].getElementsByTagName("TD")[0];
+        task_type = td.getElementsByTagName("A")[0].innerHTML.trim();
+        // console.log(i, task_type, "space", type_input, "space", task_type==type_input)
+        if (task_type == type_input || "all" == type_input) {
+          // console.log('here2', task_type == type_input, "all" == type_input)
+          table.append(rows[i])
+
+        } 
+        
+      }
+
+      // console.log("removing", "#task-table-"+weekday)
+      jQuery("#task-table-"+weekday).remove()
+      table.attr("id", "task-table-"+weekday)
+      jQuery("#table-container-"+weekday).append(table)
+
+
+    }
+    console.log('here4')
+
+    var table = $("<table id='overdue-task-table-copy' style='width:300px'></table>").text("");
+
+    prev_table = jQuery("#hidden-overdue-task-table").clone();
+
+    rows = prev_table.find('> tbody > tr');
+    table.append(rows[0]);
+    console.log("OVERDUE TABLE", rows.length)
+    for (i = 1; i < (rows.length); i++) {
+    td = rows[i].getElementsByTagName("TD")[0];
+      task_type = td.getElementsByTagName("A")[0].innerHTML.trim();
+      console.log(i, task_type, "space", type_input, "space", task_type==type_input)
+      if (task_type == type_input || "all" == type_input) {
+        table.append(rows[i])
+
+      } 
+      console.log('here')
+    }
+    
+    jQuery("#task-table").remove()
+    table.attr("id", "task-table")
+    jQuery("#table-container").append(table)
+
+    
+    
+
+  }
+
+filterByTaskType("all");
+
+function sortTable(index, reverse=false) {
+  console.log("sorting index", index);
+  var table, rows, switching, i, x, y, shouldSwitch;
+  table = document.getElementById("task-table");
+  switching = true;
+  /*Make a loop that will continue until
+  no switching has been done:*/
+  while (switching) {
+  	console.log("here in while");
+    //start by saying: no switching is done:
+    switching = false;
+    rows = table.rows;
+    /*Loop through all table rows (except the
+    first, which contains table headers):*/
+    for (i = 1; i < (rows.length - 1); i++) {
+      //start by saying there should be no switching:
+      shouldSwitch = false;
+      /*Get the two elements you want to compare,
+      one from current row and one from the next:*/
+      x = rows[i].getElementsByTagName("TD")[index];
+      y = rows[i + 1].getElementsByTagName("TD")[index];
+      if (index==0) {
+        x = x.getElementsByTagName("A")[0];
+        y = y.getElementsByTagName("A")[0];
+      }
+      
+      //check if the two rows should switch place:
+      if (((x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) && !reverse) || ( reverse &&  (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) ) ) {
+      	console.log("comparing", x.innerHTML.toLowerCase(), y.innerHTML.toLowerCase())
+        //if so, mark as a switch and break the loop:
+        shouldSwitch = true;
+        break;
+      }
+    }
+    if (shouldSwitch) {
+      /*If a switch has been marked, make the switch
+      and mark that a switch has been done:*/
+      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+      switching = true;
+    }
+  }
+}
+
+function toggleCompleted(task_id) {
+      $.ajax({
+        type : 'POST',
+        url : "/toggle_complete_task/"+task_id,
+        contentType: 'application/json;charset=UTF-8',
+        data : {'data':'changeLanguage'},
+        success: function(data) {
+          location.reload();
+        }
+      });
+      console.log("CLIcCKED to complete!!!", task_id)
+    }
+
+$("html").toggleClass("csstransforms");
+</script>
+
+{%endblock%}

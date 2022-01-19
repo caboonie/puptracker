@@ -1,0 +1,347 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+<style type="text/css">
+
+#task_nav {
+  border: solid grey 2px;
+  border-radius: 2px;
+}
+
+.calendar_icon {
+  width:15px; height: 15px; padding: 2px;
+}
+
+.done {
+   background-color: #a7a6a6;
+}
+
+.not_done {
+  border: solid 2px black;
+}
+
+.reminder {
+  border-radius: 8px
+}
+
+</style>
+
+<h1>{{text["Monthly Tasks"]}}</h1>
+
+<!-- TODO make these button pretty arrows -->
+  <span style="font-size: 18px; color: grey;">{{text['Tasks by']}}: </span>
+  <a class="pretty-button" href="/daily_tasks/{{datestring}}">{{text['Day']}}</a>
+  <a class="pretty-button" href="/weekly_tasks/{{datestring}}">{{text['Week']}}</a>
+  <a style="background-color: lightgrey; color:grey;" class="pretty-button" href="/monthly_tasks/{{datestring}}">{{text['Month']}}</a>
+  <br>
+
+  <h2 style="display: inline"> {{month}}</h2>
+  <a  id="prev_button"><img style="margin-top: -10px; width: 20px; height: 20px;" src="{{url_for('static', filename='arrow_left.png')}}" class="arrow"></a>
+  <a  id="next_button"><img style="margin-top: -10px; width: 20px; height: 20px;" src="{{url_for('static', filename='arrow_right.png')}}" class="arrow"></a>
+  <br>
+  <br>
+
+  <div style="margin-left: max(0px, calc(50% - 525px));">
+
+    <h3 style="display: inline; ">{{text['Filter by task type']}}:</h3>
+    <select id="task_type" name="task_type" onchange="filterByTaskType()" style="font-size: 23px; border: solid lightgrey 2px; background: none; border-radius: 4px;">
+      <option  value="all">{{text['all']}}</option>
+      {% for task_type in task_types %}
+        <option value="{{task_type.task_type}}"> {{task_type.task_type}} </option>
+      {% endfor %}
+    </select>
+    <br>
+    <br>
+
+    {% if overdue_tasks|length > 0 %}
+  <h4> Overdue Tasks: </h4>
+
+  <div id="overdue-table-container">
+    <table id="hidden-overdue-task-table" style="display: none; width:300px; " >
+      <tr>
+          <th> {{text['Task Type']}} 
+            <img onclick="sortTable(0)" src="{{url_for('static', filename='arrow_up.png')}}" class="arrow">
+            <img onclick="sortTable(0, true)" src="{{url_for('static', filename='arrow_down.png')}}" class="arrow">
+          </th>
+          <th>{{text['Description']}}  
+            <img onclick="sortTable(1)" src="{{url_for('static', filename='arrow_up.png')}}" class="arrow">
+            <img onclick="sortTable(1, true)" src="{{url_for('static', filename='arrow_down.png')}}" class="arrow">
+          </th>
+          {% for col in col_strings %}
+            <th> {{ col }} 
+              <img onclick="sortTable({{loop.index+1}})" src="{{url_for('static', filename='arrow_up.png')}}" class="arrow">
+              <img onclick="sortTable({{loop.index+1}}, true)" src="{{url_for('static', filename='arrow_down.png')}}" class="arrow">
+            </th>
+          {% endfor %}
+              
+          </tr>
+
+
+      {% for task in overdue_tasks %}
+        <tr class="task-row" >
+          <td><a href="/task/{{task.id}}"> {{ task.task_type }} 
+            <span style="color: red;">
+              ({{text['Overdue']}})
+            </span>
+           </a></td>
+          {% if task.description|length > 20 %}
+              <td class="desc-col"> {{ task.description[:20] }} <span class="tooltip2">...<span class="tooltiptext">{{ task.description }}</span></span></td>
+          {% else %}
+            <td class="desc-col"> {{ task.description }} </td>
+          {% endif %}
+
+          {% for col in col_vars %}
+            <td> {{ task[col] }} </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <br>
+  <br>
+  {% endif %}
+
+
+    <table id="hidden-task-table" style="display: block; width:100%;">
+    <tr>
+      {% for header in WEEKDAYS %}
+        <td>{{header}}</td>
+      {% endfor %}
+    </tr>
+    <tr>
+    {% for notifications in tasks_by_day %}
+      {% if (loop.index % 7) == 1 %}
+      </tr>
+        <tr>
+      {% endif %}
+
+      {% if (headers_by_day[loop.index-1].is_month) and (headers_by_day[loop.index-1].datestring == today_datestring) %}
+        <td class="calendar-box" style="position: relative; border: solid blue 3px;"> 
+      {% else %}
+        <td class="calendar-box" style="position: relative;"> 
+      {% endif %}
+        <div style="width: 100%; height: 20%; position: absolute; top:0px;">
+          <a href="/daily_tasks/{{headers_by_day[loop.index-1].datestring}}">
+            {% if headers_by_day[loop.index-1].is_month %}
+              <div style="color: black;">
+                {{headers_by_day[loop.index-1].number}}
+              </div>
+            {% else %}
+              <div style="color: gray;">
+                {{headers_by_day[loop.index-1].number}}
+              </div>
+            {% endif %}
+          </a>
+        </div>
+        {% for notification in notifications %}
+          
+          {% if notification.is_reminder %}
+            {% if notification.task.completed %}
+              <a href="/task/{{notification.task.id}}" class="notification">
+               <span class="tooltip2">
+                 <div class="calendar_icon done reminder"></div>
+               <span class="tooltiptext">{{ notification.task.task_type }}</span></span>
+              </a> 
+            {% else %}
+              <a href="/task/{{notification.task.id}}" style="font-weight: bold;" class="notification">
+               <span class="tooltip2">
+                 <div class="calendar_icon reminder not_done" style=" background-color: {{notification.task.color}};"></div>
+               <span class="tooltiptext">{{ notification.task.task_type }}</span></span>
+             </a>
+            {% endif %}
+          {% else %}
+            {% if notification.task.completed %}
+              <a href="/task/{{notification.task.id}}" class="notification">
+               <span class="tooltip2">
+                 <div class="calendar_icon done"></div>
+               <span class="tooltiptext">{{ notification.task.task_type }}</span></span>
+             </a>
+           {% else %}
+              <a href="/task/{{notification.task.id}}" style="font-weight: bold;" class="notification"> 
+               <span class="tooltip2">
+                 <div class="calendar_icon not_done" style=" background-color: {{notification.task.color}};"></div>
+               <span class="tooltiptext">{{ notification.task.task_type }}</span></span>
+             </a>
+           {% endif %}
+           
+          {% endif %}
+
+        {% endfor %}
+      </td>
+
+    {% endfor %}
+    </tr>
+
+  </table>
+  <div style="border: solid: 1px black; width:75%; min-height: 100px; position: relative; margin-top: 5px">
+    <div style="position:absolute; top: 0px; margin: 0px;">
+      <h3 style="margin: 0px;">{{text['Legend']}}</h3>
+    </div>
+    <table  style="position:absolute; top: 30px; border: 1px solid #CCC;
+      border-collapse: collapse;" class="legend">
+      <tr>
+        <td>
+          <span>{{text['Reminder']}}: </span><span style="width:15px; margin-top:3px; height: 15px; padding-top:3px; background-color: blue; display: inline-block; border: solid 1px black; border-radius: 8px"></span>
+        </td>
+        <td>
+          <span>{{text['Due Date']}}: </span><span style="width:15px; margin-top:3px; height: 15px; padding-top:3px; background-color: blue; display: inline-block; border: solid 2px black;"></span>
+        </td>
+        <td>
+          <span>{{text['Completed']}}: </span><span style="width:15px; margin-top:3px; height: 15px; padding-top:3px; background-color: #a7a6a6; display: inline-block; "></span>
+        </td>
+      </tr>
+      <tr>
+      {% for key in legend %}
+        {% if (loop.index % 3) == 1 %}
+        </tr>
+          <tr>
+        {% endif %}
+
+
+        <td> 
+          <span>{{key}}: </span><span style="width:15px; margin-top:3px; height: 15px; padding-top:3px; background-color: {{legend[key]}}; display: inline-block;"></span>
+        </td>
+      {% endfor %}
+      </tr>
+    </table>
+  </div>
+</div>
+
+
+
+
+ 
+  
+
+
+<script>
+  var display_date = new Date(Date.parse("{{datestring}}"));
+  display_date =  new Date(display_date.getTime() + display_date.getTimezoneOffset()*60*1000)
+  jQuery("#day_header").innerHTML = "Tasks for "+display_date;
+
+  var next_date = new Date(display_date.valueOf());
+  next_date.setMonth(next_date.getMonth() + 1);
+  // console.log("display_date",display_date, "next_date", next_date)
+
+  var day = ("0" + next_date.getDate()).slice(-2);
+  var month = ("0" + (next_date.getMonth() + 1)).slice(-2);
+
+  jQuery("#next_button").attr("href", "/monthly_tasks/"+next_date.getFullYear()+"-"+month+"-"+day)
+
+  var prev_date = new Date(display_date.valueOf());
+  prev_date.setMonth(prev_date.getMonth() - 1);
+  var day = ("0" + prev_date.getDate()).slice(-2);
+  var month = ("0" + (prev_date.getMonth() + 1)).slice(-2);
+
+  jQuery("#prev_button").attr("href", "/monthly_tasks/"+prev_date.getFullYear()+"-"+month+"-"+day)
+
+  // year, month, day = 
+
+  // corrected_date = new Date(Date.now().getTime() + due_date.getTimezoneOffset()*60*1000);
+  // var day = ("0" + remind_date.getDate()).slice(-2);
+  // var month = ("0" + (remind_date.getMonth() + 1)).slice(-2);
+  // var display_date = remind_date.getFullYear()+"-"+(month)+"-"+(day) ;
+  // jQuery("#day_header").innerHTML = "Tasks for "+display_date;
+
+    
+  function filterByTaskType() {
+    console.log("filtering")
+    var type_input = jQuery("#task_type").val().trim()
+    // var table = $("<table id='task-table-copy' style='width:100%'></table>").text("");
+    prev_table = jQuery("#hidden-task-table") // .clone();
+    rows = prev_table.find('> tbody > tr');
+    for (i = 0; i < (rows.length); i++) {
+      tds = rows[i].getElementsByTagName("TD")
+      for (j = 0; j < tds.length; j++) {
+        notifications = tds[j].getElementsByClassName("notification")
+        for (k = 0; k < notifications.length; k++) {
+          // console.log("checking notification", notifications)
+          task_type = notifications[k].getElementsByClassName("tooltiptext")[0].innerHTML.trim();
+          if (task_type == type_input || "all" == type_input) {
+            // table.append(rows[i])
+            $(notifications[k]).css("display", "inline")
+          } else {
+            $(notifications[k]).css("display", "none")
+          }
+        } 
+        
+      }
+    }
+
+    console.log('here4')
+
+    var table = $("<table id='overdue-task-table-copy' style='width:300px'></table>").text("");
+
+    prev_table = jQuery("#hidden-overdue-task-table").clone();
+
+    rows = prev_table.find('> tbody > tr');
+    table.append(rows[0]);
+    console.log("OVERDUE TABLE", rows.length)
+    for (i = 1; i < (rows.length); i++) {
+    td = rows[i].getElementsByTagName("TD")[0];
+      task_type = td.getElementsByTagName("A")[0].innerHTML.trim();
+      console.log(i, task_type, "space", type_input, "space", task_type==type_input)
+      if (task_type == type_input || "all" == type_input) {
+        table.append(rows[i])
+
+      } 
+      console.log('here')
+    }
+    
+    jQuery("#task-table").remove()
+    table.attr("id", "task-table")
+    jQuery("#overdue-table-container").append(table)
+
+    
+
+  }
+
+filterByTaskType("all");
+
+function sortTable(index, reverse=false) {
+  console.log("sorting index", index);
+  var table, rows, switching, i, x, y, shouldSwitch;
+  table = document.getElementById("task-table");
+  switching = true;
+  /*Make a loop that will continue until
+  no switching has been done:*/
+  while (switching) {
+  	console.log("here");
+    //start by saying: no switching is done:
+    switching = false;
+    rows = table.rows;
+    /*Loop through all table rows (except the
+    first, which contains table headers):*/
+    for (i = 1; i < (rows.length - 1); i++) {
+      //start by saying there should be no switching:
+      shouldSwitch = false;
+      /*Get the two elements you want to compare,
+      one from current row and one from the next:*/
+      x = rows[i].getElementsByTagName("TD")[index];
+      y = rows[i + 1].getElementsByTagName("TD")[index];
+      if (index==0) {
+        x = x.getElementsByTagName("A")[0];
+        y = y.getElementsByTagName("A")[0];
+      }
+      
+      //check if the two rows should switch place:
+      if (((x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) && !reverse) || ( reverse &&  (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) ) ) {
+      	console.log("comparing", x.innerHTML.toLowerCase(), y.innerHTML.toLowerCase())
+        //if so, mark as a switch and break the loop:
+        shouldSwitch = true;
+        break;
+      }
+    }
+    if (shouldSwitch) {
+      /*If a switch has been marked, make the switch
+      and mark that a switch has been done:*/
+      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+      switching = true;
+    }
+  }
+}
+</script>
+
+{%endblock%}
