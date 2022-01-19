@@ -16,7 +16,7 @@ def home():
 
 @app.route('/quick_add/<int:type_id>')
 def quick_add(type_id):
-    create_note(type_id, datetime.now(), "")
+    create_note(type_id, datetime.now()-timedelta(hours=5), "")
     return redirect(url_for("home"))
 
 
